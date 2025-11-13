@@ -1,0 +1,175 @@
+import java.io.*;
+import java.util.*;
+
+public class TicketOffice implements Serializable {
+    private static TicketOffice instance;
+
+    private Map<Direction, Double> tariffs;
+    private List<Ticket> tickets;
+    private List<Passenger> passengers;
+
+    // Мой Singleton
+    private TicketOffice() {
+        tariffs = new HashMap<>();
+        tickets = new ArrayList<>();
+        passengers = new ArrayList<>();
+        initializeDefaultTariffs();
+    }
+
+    public static TicketOffice getInstance() {
+        if (instance == null) {
+            instance = new TicketOffice();
+        }
+        return instance;
+    }
+
+    private void initializeDefaultTariffs() {
+        tariffs.put(Direction.MOSCOW, 1500.0);
+        tariffs.put(Direction.SAINT_PETERSBURG, 1200.0);
+        tariffs.put(Direction.SOCHI, 3500.0);
+        tariffs.put(Direction.KAZAN, 1800.0);
+        tariffs.put(Direction.EKATERINBURG, 2500.0);
+        tariffs.put(Direction.NOVOSIBIRSK, 4500.0);
+        tariffs.put(Direction.KRASNODAR, 2800.0);
+        tariffs.put(Direction.ROSTOV, 2200.0);
+    }
+
+    public void setTariff(Direction direction, double price) {
+        if (price <= 0) {
+            System.out.println("Ошибка! Стоимость тарифа должна быть положительной.");
+        } else if (price > 100000) {
+            System.out.println("Ошибка! Слишком большая стоимость (" + price + " руб.). Максимальная цена билета: 10 000 руб.");
+        } else {
+            tariffs.put(direction, price);
+            System.out.println("Тариф на направление " + direction + " установлен: " + price + " руб.");
+        }
+    }
+
+    public double getTariff(Direction direction) {
+        return tariffs.getOrDefault(direction, 0.0);
+    }
+
+    public void displayAllTariffs() {
+        System.out.println("\nТАРИФЫ НА НАПРАВЛЕНИЯ");
+        for (Map.Entry<Direction, Double> entry : tariffs.entrySet()) {
+            System.out.println(entry.getKey() + ": " + entry.getValue() + " руб.");
+        }
+    }
+
+    public void addPassenger(Passenger passenger) {
+        passengers.add(passenger);
+    }
+
+    // НОВЫЙ МЕТОД: удаление пассажира
+    public boolean removePassenger(String passportNumber) {
+        Passenger passenger = findPassengerByPassport(passportNumber);
+        if (passenger != null) {
+            // Удаляем пассажира
+            passengers.remove(passenger);
+
+            // Удаляем все билеты этого пассажира
+            tickets.removeIf(ticket -> ticket.getPassenger().equals(passenger));
+
+            System.out.println("Пассажир " + passportNumber + " удален из системы");
+            return true;
+        }
+        return false;
+    }
+
+    // Получение всех пассажиров
+    public List<Passenger> getAllPassengers() {
+        return new ArrayList<>(passengers);
+    }
+
+    // Получение всех билетов
+    public List<Ticket> getAllTickets() {
+        return new ArrayList<>(tickets);
+    }
+
+    public Passenger findPassengerByPassport(String passportNumber) {
+        for (Passenger passenger : passengers) {
+            if (passenger.getPassportNumber().equals(passportNumber)) {
+                return passenger;
+            }
+        }
+        return null;
+    }
+
+    public boolean sellTicket(Passenger passenger, Direction direction) {
+        double price = getTariff(direction);
+        if (price > 0) {
+            Ticket ticket = new Ticket(passenger, direction, price);
+            tickets.add(ticket);
+            System.out.println("Билет продан: " + ticket);
+            return true;
+        } else {
+            System.out.println("Ошибка! Тариф на направление " + direction + " не установлен.");
+            return false;
+        }
+    }
+
+    public double calculateTotalCostForPassenger(Passenger passenger) {
+        double total = 0.0;
+        for (Ticket ticket : tickets) {
+            if (ticket.getPassenger().equals(passenger)) {
+                total += ticket.getPrice();
+            }
+        }
+        return total;
+    }
+
+    public void displayPassengersByDirection(Direction direction) {
+        System.out.println("\n ПАССАЖИРЫ НАПРАВЛЕНИЯ: " + direction + " ");
+        boolean found = false;
+        for (Ticket ticket : tickets) {
+            if (ticket.getDirection() == direction) {
+                System.out.println(ticket.getPassenger());
+                found = true;
+            }
+        }
+        if (!found) {
+            System.out.println("На это направление билеты не продавались.");
+        }
+    }
+
+    public void displayAllTickets() {
+        System.out.println("\nВСЕ ПРОДАННЫЕ БИЛЕТЫ");
+        if (tickets.isEmpty()) {
+            System.out.println("Билетов нет.");
+        } else {
+            for (Ticket ticket : tickets) {
+                System.out.println(ticket);
+            }
+        }
+    }
+
+    public void cleanup() {
+        tickets.clear();
+        passengers.clear();
+        System.out.println("Система очищена.");
+    }
+
+    // Сохранение и загрузка данных
+    public void saveToFile(String filename) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filename))) {
+            oos.writeObject(tariffs);
+            oos.writeObject(passengers);
+            oos.writeObject(tickets);
+            System.out.println("Данные успешно сохранены в файл: " + filename);
+        } catch (IOException e) {
+            System.out.println("Ошибка при сохранении данных: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    public void loadFromFile(String filename) {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filename))) {
+            tariffs = (Map<Direction, Double>) ois.readObject();
+            passengers = (List<Passenger>) ois.readObject();
+            tickets = (List<Ticket>) ois.readObject();
+            System.out.println("Данные успешно загружены из файла: " + filename);
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Ошибка при загрузке данных: " + e.getMessage());
+        }
+    }
+}
